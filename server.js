@@ -2,18 +2,9 @@ const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
 const cors = require('cors');
-const rateLimit = require("express-rate-limit");
 const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100 
-});
-
-app.use(limiter);
 
 // Use CORS
 app.use(cors());
