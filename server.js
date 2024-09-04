@@ -1,7 +1,11 @@
 const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
+const multer = require('multer');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
 const cors = require('cors');
+const { getMaxListeners } = require('events');
 const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -18,6 +22,43 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME
 });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  },
+});
+
+const upload = multer({ storage });
+
+// Mail setup
+const transporter = nodemailer.createTransport({
+  host: 'smtp.ethereal.email',
+  port: 587,
+  auth: {
+      user: 'reymundo.streich@ethereal.email',
+      pass: 'Nuz4pEPJuuzrcYNmC8'
+  }
+});
+
+const sendEmail = (filePath) => {
+  const mailOptions = {
+    from: "cityrentalsbuisness@gmail.com",
+    to: "amanbhaker@gmail.com",
+    subject: 'New File Upload',
+    text: 'A file has been uploaded.',
+    attachments: [
+      {
+        path: filePath,
+      },
+    ],
+  };
+
+  return transporter.sendMail(mailOptions);
+};
 
 db.connect(err => {
   if (err) {
@@ -104,6 +145,25 @@ app.post('/api/reject-listing', (req, res) => {
     res.json({ success: true });
   });
 });
+
+app.post('/api/upload-image', upload.single('file'), (req, res) => {
+  const filePath = path.join(__dirname, 'uploads', req.file.filename);
+
+  sendEmail(filePath)
+    .then(() => {
+      fs.unlinkSync(filePath); // Delete the file after sending the email
+      res.status(200).send('File uploaded and sent via email.');
+    })
+    .catch((error) => {
+      console.error('Error sending email:', error);
+      res.status(500).send('Failed to send email.');
+    });
+});
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
 
 // Start the server
 app.listen(port, () => {
